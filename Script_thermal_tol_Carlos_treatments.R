@@ -17,21 +17,27 @@ options(stringsAsFactors=FALSE)
 packs.to.extract<-list('raster','ncdf4','maptools','sp','foreach',
                        'doParallel','abind','stringr','rgdal','foreign')
 lapply(packs.to.extract,require, character.only=T)
-install.packages("SDMTools")
-install.packages("letsR")
-install.packages("MLmetrics")
+
 library(SDMTools)
-library(letsR)
-library(MLmetrics)
+library(dismo)
+library(biomod2)
+library(PresenceAbsence)
+
+
 
 
 load("~/MEGA/Work_UAH_postdoc/Teaching2018/TFG CARLOS MOLINERO/R/CMolineroTFG.RData")
+load("~/MEGA/Work_UAH_postdoc/Teaching2019/Carlos Molinero - FollowUp/analisis/CMolineroTFG2.RData")
 
 
 
 #### Tratamientos Tmax, Tmin loop ####
 
 matrizaveseuropeasT=matrizaveseuropeas # definir matriz para extraer datos
+matrizpresabs=matrizaveseuropeas$Presence_and_Absence_Matrix
+head(matrizpresabs)
+
+plot(matrizaveseuropeas$Richness_Raster)
 
 
 
@@ -41,13 +47,13 @@ matriz.tratamiento60day=array(NA,dim=c(nrow(matrizaveseuropeas.tempmax),nsps))
 matriz.tratamiento90day=array(NA,dim=c(nrow(matrizaveseuropeas.tempmax),nsps))
 
 
-evaluation.AUC.alltreat = array(NA,dim=c(12,12,4,length(listspeurope)))
-length(listspeurope)
+evaluation.AUC.alltreat = array(NA,dim=c(6,6,4,length(listspeurope)))
 
-for(i in 1:25){#i=4
-  
+
+#for(i in 1:length(listspeurope[i])){#i=1
+for(i in 1:2){#i=1
     
-  print(listspeurope[i])
+    print(listspeurope[i])
   
   specie.i=listspeurope[i]
   
@@ -56,12 +62,12 @@ for(i in 1:25){#i=4
   tol.min=tol.especie$tmin
   tol.max=tol.especie$Tmax
   
-  for(numdays in c(15,30,60,90,120,150)){#numdays=15
+  for(numdays in c(15,30,60,90)){#numdays=15
   
-  for(tmaxlim in seq(0.05,0.6,0.05)){ #tmaxlim=0.5
-    for(tminlim in seq(0.05,0.6,0.05)){ #tminlim=0.5
+  for(tmaxlim in seq(0.05,0.3,0.05)){ #tmaxlim=0.1
+    for(tminlim in seq(0.05,0.3,0.05)){ #tminlim=0.1
       
-      print(paste(i,numdays,tmaxlim,tminlim))
+      print(paste(specie.i,numdays,tmaxlim,tminlim))
       
       tol.maxS=tol.max + tmaxlim*tol.max
       tol.minS=tol.min - tminlim*tol.min
@@ -70,15 +76,19 @@ for(i in 1:25){#i=4
                     function(x){ifelse(sum(x>tol.maxS)>30 |
                     sum(x<tol.minS)>30,0,1)})
       prueba3[is.na(prueba3)]=0
-      # matriz.tratamientoT3[,i]=prueba3
+      #matriz.tratamientoT3[,i]=prueba3
       #matrizaveseuropeasT3$Presence_and_Absence_Matrix[,specie.i]=prueba3
       
-      pos.tmin=which(seq(0.05,0.6,0.05)==tminlim)
-      pos.tmax=which(seq(0.05,0.6,0.05)==tmaxlim)
-      pos.days=which(c(15,30,60,90,120,150)==numdays)
+      pos.tmin=which(seq(0.05,0.3,0.05)==tminlim)
+      pos.tmax=which(seq(0.05,0.3,0.05)==tmaxlim)
+      pos.days=which(c(15,30,60,90)==numdays)
       
-      evaluation.AUC.alltreat[pos.tmin,pos.tmax,pos.days,i]=Accuracy(matrizpresabs[,i], prueba3, 0.5)$AUC
+      #evaluation.AUC.alltreat[pos.tmin,pos.tmax,pos.days,i]=accuracy(matrizpresabs[,i], prueba3,0.5)$AUC
+      aucs<-Find.Optim.Stat(Stat='ROC', Fit=prueba3, Obs=matrizpresabs[,i+2])
       
+      evaluation.AUC.alltreat[pos.tmin,pos.tmax,pos.days,i]=aucs[1]
+      
+      #auc(as.data.frame(cbind(paste("X",1:nrow(matrizpresabs)),matrizpresabs[,i+2],prueba3)))
       
     }
   }
@@ -87,98 +97,14 @@ for(i in 1:25){#i=4
 }
 
 
-#### plotting ####
 
-par(mfrow=c(4,3))
-
-plot(matrizaveseuropeas,specie.i)
-
-for(i in 1:6){
-  
-  print(max(evaluation.AUC.alltreat[,,i,4],na.rm=T))
-
-  
-}
-
-image(apply(t(t(as.matrix(evaluation.AUC.Eu[,,1,4]))),1,rev))
-
-plot()
-
-
-
-evaluation.AUC.Eu <- evaluation.AUC.alltreat[,,,]
-
-par(mfrow=c(2,2))
-for(i in 1:4){
-image(apply(t(t(as.matrix(evaluation.AUC.Eu[,,i,16]))),1,rev))
-}
-listspeurope[4]
-
-# America
-matrizaveamericanasT=matrizavesamericanas # definir matriz para extraer datos
-
-matriz.tratamiento15day2=array(NA,dim=c(nrow(matrizavesamericanas.tempmax),nsps))
-matriz.tratamiento30day2=array(NA,dim=c(nrow(matrizavesamericanas.tempmax),nsps))
-matriz.tratamiento60day2=array(NA,dim=c(nrow(matrizavesamericanas.tempmax),nsps))
-matriz.tratamiento90day2=array(NA,dim=c(nrow(matrizavesamericanas.tempmax),nsps))
-
-
-evaluation.AUC.alltreat2 = array(NA,dim=c(6,6,4,length(listspamerica)))
-length(listspamerica)
-
-for(i in 1:66){#i=1
-  
-  
-  print(listspamerica[i])
-  
-  specie.i=listspamerica[i]
-  
-  tol.especie=subset(tolerancias,Binomial2==specie.i)
-  
-  tol.min=tol.especie$tmin
-  tol.max=tol.especie$Tmax
-  
-  for(numdays in c(15,30,60,90)){#numdays=15
-    
-    for(tmaxlim in seq(0.05,0.3,0.05)){ #tmaxlim=0.1
-      for(tminlim in seq(0.05,0.3,0.05)){ #tminlim=0.1
-        
-        print(paste(i,numdays,tmaxlim,tminlim))
-        
-        tol.maxS=tol.max + tmaxlim*tol.max
-        tol.minS=tol.min - tminlim*tol.min
-        
-        prueba4=apply(matrizavesamericanas.tempmax[,120:(120+numdays)],1,
-                      function(x){ifelse(sum(x>tol.maxS)>30 |
-                                           sum(x<tol.minS)>30,0,1)})
-        prueba4[is.na(prueba3)]=0
-        # matriz.tratamientoT3[,i]=prueba3
-        #matrizaveseuropeasT3$Presence_and_Absence_Matrix[,specie.i]=prueba3
-        
-        pos.tmin=which(seq(0.05,0.3,0.05)==tminlim)
-        pos.tmax=which(seq(0.05,0.3,0.05)==tmaxlim)
-        pos.days=which(c(15,30,60,90)==numdays)
-        
-        evaluation.AUC.alltreat2[pos.tmin,pos.tmax,pos.days,i]=accuracy(matrizpresabs2[,i], prueba4,0.5)$AUC
-        
-        
-      }
-    }
-  }
-  
-}
-
-
-
-evaluation.AUC.Am <- evaluation.AUC.alltreat2[,,,]
-
+evaluation.AUC.alltreat[,,,1]
 
 
 
 
 #accuracy(observados, matriztramiento, 0,5 es un umbral que marcamos) AUC y Prop.correct
 #librarySDMTools 
-?accuracy
 
 #preparando datos
 matrizpresabs=matrizaveseuropeas$Presence_and_Absence_Matrix[,3:27]
